@@ -45,6 +45,16 @@ test('has no serious accessibility violations in the empty state', async ({ page
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
+test('loads without console or page errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+});
+
 test('keeps the app shell available offline', async ({ page, context }) => {
   await page.goto('/');
   await page.evaluate(() => navigator.serviceWorker.ready);

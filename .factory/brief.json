@@ -1,9 +1,30 @@
 {
   "slug": "deposit-drawdown-ledger",
   "title": "Retainer Ledger",
-  "artifact_class": "pwa-offline",
+  "territory": "utilities",
   "user": "Independent consultants and tradespeople who take deposits or retainers, then need to show exactly how later work draws down that money.",
-  "smallest_useful_product": "An offline ledger for one job: record a deposit request, payments, approved drawdowns, and remaining balance; export a branded one-page PDF statement.",
-  "monetization": "one-time",
-  "constraints": "Use neutral wording such as record, preserve immutable adjustment history, and timestamp every generated statement."
+  "evidence": [
+    {
+      "url": "https://hn.algolia.com/api/v1/items/48685487",
+      "date": "2026-06-26",
+      "quote_or_summary": "An Ask HN discussion describes a freelance invoice as itemized milestones and incremental amounts due, rather than a single final bill."
+    },
+    {
+      "url": "https://github.com/invoiceninja/invoiceninja/issues/12188",
+      "date": "2026-08-13",
+      "quote_or_summary": "A professional-services user explains that AP departments demand a numbered deposit invoice, but normal paid invoices cannot be cleanly drawn down against future progress invoices without manual credits or refunds."
+    }
+  ],
+  "recurrence": "The pattern appears in both freelancer invoicing discussion and a detailed 2026 request from professional services/trades. Misstating a deposit as revenue or losing its balance creates client disputes and bookkeeping cleanup.",
+  "current_workaround": "Issue a normal invoice, maintain a spreadsheet, and manually create credit notes or subtract the deposit from later invoices.",
+  "incumbents_and_gap": "QuickBooks, Xero, and Invoice Ninja support invoices and payments, but the requester documents a missing lightweight distinction between a formal deposit request and earned work. The gap is an explainable, client-shareable drawdown trail.",
+  "smallest_useful_product": "An offline ledger for one job: record a deposit request, payments, approved drawdowns, and remaining balance; export a branded one-page PDF statement. Non-goals: card collection, double-entry accounting, tax filing, or automatic revenue recognition.",
+  "success_measure": "At least 70% of pilot users issue a statement for two or more jobs and can reconcile the displayed balance to their bank/payment record without a spreadsheet.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time — a local job-ledger utility can be bought when a business first needs deposits and should not tax every payment.",
+  "constraints": "Use neutral wording such as record, not accounting advice; preserve immutable adjustment history; exported statements need a clear generated-at timestamp.",
+  "est_build_effort": "S",
+  "why_distinct": "It manages the deposit-to-work explanation, a narrow layer absent from generic invoicing screens.",
+  "confidence": 4,
+  "state": "RESEARCHED"
 }
