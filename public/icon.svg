@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Retainer Ledger receipt mark">
+  <rect width="512" height="512" fill="#080a12"/>
+  <path d="M142 82h228v346l-57-36-57 36-57-36-57 36V82Z" fill="#10131f" stroke="#53f3d0" stroke-width="18"/>
+  <path d="M196 174h120M196 238h120" stroke="#f4f0e6" stroke-width="20" stroke-linecap="square"/>
+  <path d="M196 310h48" stroke="#ffbf5b" stroke-width="20"/>
+  <path d="M284 310h32" stroke="#53f3d0" stroke-width="20"/>
+</svg>

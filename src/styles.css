@@ -199,6 +199,7 @@ input:hover, select:hover { border-color: var(--paper); }
   .brand > span:last-child { display: none; }
   .brand-mark { width: 42px; height: 42px; }
   .network-status { display: none; }
+  .network-status.offline { display: inline-flex; }
   .header-button { padding: 0 10px; }
   .header-button svg + span { display: none; }
   main { padding: 28px 16px 48px; }

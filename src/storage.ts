@@ -86,7 +86,17 @@ export async function exportBundle(): Promise<LedgerBundle> {
 function isBundle(value: unknown): value is LedgerBundle {
   if (!value || typeof value !== 'object') return false;
   const bundle = value as Partial<LedgerBundle>;
-  return bundle.schemaVersion === 1 && Array.isArray(bundle.jobs) && Array.isArray(bundle.records) && !!bundle.branding;
+  const jobValid = (job: unknown): job is Job => {
+    if (!job || typeof job !== 'object') return false;
+    const item = job as Partial<Job>;
+    return typeof item.id === 'string' && typeof item.name === 'string' && typeof item.client === 'string' && typeof item.currency === 'string' && typeof item.createdAt === 'string';
+  };
+  const recordValid = (record: unknown): record is LedgerRecord => {
+    if (!record || typeof record !== 'object') return false;
+    const item = record as Partial<LedgerRecord>;
+    return typeof item.id === 'string' && typeof item.jobId === 'string' && ['request', 'payment', 'drawdown', 'adjustment'].includes(item.kind ?? '') && Number.isSafeInteger(item.amountCents) && typeof item.description === 'string' && typeof item.occurredOn === 'string';
+  };
+  return bundle.schemaVersion === 1 && Array.isArray(bundle.jobs) && bundle.jobs.every(jobValid) && Array.isArray(bundle.records) && bundle.records.every(recordValid) && !!bundle.branding && typeof bundle.branding.businessName === 'string' && typeof bundle.branding.contactLine === 'string';
 }
 
 export async function importBundle(value: unknown): Promise<{ jobsAdded: number; recordsAdded: number }> {
@@ -97,9 +107,10 @@ export async function importBundle(value: unknown): Promise<{ jobsAdded: number;
   const jobs = value.jobs.filter((job) => !jobIds.has(job.id));
   const records = value.records.filter((record) => !recordIds.has(record.id) && (jobIds.has(record.jobId) || jobs.some((job) => job.id === record.jobId)));
   const db = await openDatabase();
-  const transaction = db.transaction(['jobs', 'records'], 'readwrite');
+  const transaction = db.transaction(['jobs', 'records', 'settings'], 'readwrite');
   for (const job of jobs) transaction.objectStore('jobs').add(job);
   for (const record of records) transaction.objectStore('records').add(record);
+  if (!current.branding.businessName && !current.branding.contactLine) transaction.objectStore('settings').put(value.branding, 'branding');
   await transactionDone(transaction);
   db.close();
   return { jobsAdded: jobs.length, recordsAdded: records.length };

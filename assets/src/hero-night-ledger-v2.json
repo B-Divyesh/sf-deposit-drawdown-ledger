@@ -1,0 +1,7 @@
+{
+  "generated_at": "2026-08-28",
+  "tool": "/opt/fleet/lib/gen-image.sh",
+  "deployment": "factory-image (Azure AI Foundry)",
+  "use_case": "stylized-concept",
+  "prompt": "Use case: stylized-concept. Asset type: responsive product hero and empty-state illustration. Primary request: an editorial still life of a meticulous night-market bookkeeper's counter after dusk, with one entirely blank cream ledger sheet and tidy stacks of translucent cyan deposit tokens arranged on the left flowing into warm amber work tokens on the right. Include only a simple unmarked wooden tally tray with completely blank slots, no calculator and no keypad. Scene/backdrop: compact street-market stall, deep ink surroundings. Style/medium: tactile miniature set photography with subtle risograph grain, believable paper and acrylic materials. Composition/framing: wide 3:2, central ledger, clear quiet perimeter for cropping, no people. Lighting/mood: restrained cyan and amber neon edge light, trustworthy and calm rather than cyberpunk. Color palette: midnight ink, paper cream, electric mint-cyan, market amber. Materials/textures: fibrous paper, translucent acrylic, worn lacquer, rain droplets. Constraints: all paper and objects completely blank; no readable text, no letters, no numerals, no writing, no screens, no logos, no brands, no watermark, no UI screenshot, no currency symbols, no people, no hands. Avoid: calculator, keypad, generic gradient, purple tech aesthetic, excessive glow, clutter, futuristic holograms."
+}
