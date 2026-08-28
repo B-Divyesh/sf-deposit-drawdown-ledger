@@ -1,0 +1,9 @@
+{
+  "slug": "deposit-drawdown-ledger",
+  "title": "Retainer Ledger",
+  "artifact_class": "pwa-offline",
+  "user": "Independent consultants and tradespeople who take deposits or retainers, then need to show exactly how later work draws down that money.",
+  "smallest_useful_product": "An offline ledger for one job: record a deposit request, payments, approved drawdowns, and remaining balance; export a branded one-page PDF statement.",
+  "monetization": "one-time",
+  "constraints": "Use neutral wording such as record, preserve immutable adjustment history, and timestamp every generated statement."
+}
