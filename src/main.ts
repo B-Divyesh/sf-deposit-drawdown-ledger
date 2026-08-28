@@ -2,7 +2,7 @@ import './styles.css';
 import { calculateTotals, formatMoney, parseMoney, recordEffect } from './calculations';
 import { buildStatementPdf, safeFilename } from './pdf';
 import { checkoutUrl, consumeReturnedLicense, getLicense, isPaidFromCache, storeLicense, verifyLicense } from './license';
-import { addJob, addRecord, exportBundle, importBundle, loadLedger, saveBranding } from './storage';
+import { addJob, addRecord, clearLedger, exportBundle, exportRecoveryBundle, importBundle, loadLedger, saveBranding } from './storage';
 import type { Branding, CurrencyCode, Job, LedgerRecord, RecordKind } from './types';
 
 const app = document.querySelector<HTMLDivElement>('#app') as HTMLDivElement;
@@ -173,7 +173,7 @@ function renderApp(): void {
   app.innerHTML = `
     <header class="site-header"><a class="brand" href="/" aria-label="Retainer Ledger home"><span class="brand-mark">${icon('receipt')}</span><span>Retainer Ledger</span></a><div class="header-actions"><span class="network-status ${online ? '' : 'offline'}"><i></i>${online ? 'Local' : 'Offline'}</span><button class="header-button" data-action="data" aria-label="Data and backups">${icon('data')} <span>Data</span></button><button class="header-button" data-action="unlock">${paid ? 'Unlocked' : `${icon('lock')} Unlock`}</button></div></header>
     <main id="main"><div class="app-title"><div><p class="eyebrow">Deposit → drawdown → balance</p><h1>Retainer Ledger</h1></div><p>A client-ready record of money held and work approved.</p></div>
-      ${fatalError ? `<div class="fatal-error" role="alert"><h2>Your local ledger could not open.</h2><p>${escapeHtml(fatalError)}</p><button class="button secondary" data-action="retry">Try again</button></div>` : `<div class="app-shell"><aside class="job-rail"><div class="rail-head"><div><p class="eyebrow">Your work</p><h2>Jobs</h2></div><button class="icon-button add-job" data-action="new-job" aria-label="Create a job">${icon('plus')}</button></div>${jobs.length ? `<nav aria-label="Job ledgers"><ul class="job-list">${jobs.map((item) => { const itemTotals = calculateTotals(recordsFor(item.id)); return `<li><button class="job-button ${item.id === job?.id ? 'active' : ''}" data-job-id="${item.id}" ${item.id === job?.id ? 'aria-current="page"' : ''}><span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.client)}</small><strong>${formatMoney(itemTotals.remaining, item.currency)}</strong></button></li>`; }).join('')}</ul></nav>` : '<p class="rail-empty">Your job ledgers will line up here.</p>'}<div class="rail-footer"><span>${paid ? 'Unlimited ledgers' : 'Free ledger · 1 job'}</span>${!paid ? '<button class="text-button" data-action="unlock">See unlock</button>' : ''}</div></aside><div class="workbench">${job ? renderActive(job) : renderEmpty()}</div></div>`}
+      ${fatalError ? `<div class="fatal-error" role="alert"><h2>Your local ledger could not open.</h2><p>${escapeHtml(fatalError)}</p><p>Nothing has been sent anywhere. Save a recovery copy before clearing this browser’s damaged local data.</p><div class="dialog-actions"><button class="button secondary" data-action="export-recovery">Download recovery copy</button><button class="button quiet" data-action="retry">Try again</button><button class="button primary" data-action="clear-corrupt-data">Clear local ledger</button></div></div><dialog id="recovery-dialog" aria-labelledby="recovery-title"><div class="dialog-form"><div class="dialog-head"><div><p class="eyebrow">Clear local data</p><h2 id="recovery-title">Start with an empty ledger?</h2></div><button class="icon-button" data-close="recovery-dialog" aria-label="Close recovery dialog">×</button></div><p>This removes all Retainer Ledger jobs, records, and branding from this browser. Download a recovery copy first if you may need the damaged data.</p><div class="dialog-actions"><button class="button quiet" data-close="recovery-dialog">Cancel</button><button class="button primary" data-action="confirm-clear-corrupt-data">Clear local ledger</button></div></div></dialog>` : `<div class="app-shell"><aside class="job-rail"><div class="rail-head"><div><p class="eyebrow">Your work</p><h2>Jobs</h2></div><button class="icon-button add-job" data-action="new-job" aria-label="Create a job">${icon('plus')}</button></div>${jobs.length ? `<nav aria-label="Job ledgers"><ul class="job-list">${jobs.map((item) => { const itemTotals = calculateTotals(recordsFor(item.id)); return `<li><button class="job-button ${item.id === job?.id ? 'active' : ''}" data-job-id="${item.id}" ${item.id === job?.id ? 'aria-current="page"' : ''}><span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.client)}</small><strong>${formatMoney(itemTotals.remaining, item.currency)}</strong></button></li>`; }).join('')}</ul></nav>` : '<p class="rail-empty">Your job ledgers will line up here.</p>'}<div class="rail-footer"><span>${paid ? 'Unlimited ledgers' : 'Free ledger · 1 job'}</span>${!paid ? '<button class="text-button" data-action="unlock">See unlock</button>' : ''}</div></aside><div class="workbench">${job ? renderActive(job) : renderEmpty()}</div></div>`}
     </main>
     <footer class="site-footer"><span>Records stay on this device.</span><span><a href="/privacy" data-route>Privacy</a><a href="/terms" data-route>Terms</a><span>Generated illustration · original AI-assisted art</span></span></footer>
     <div id="live-region" class="sr-only" aria-live="polite">${escapeHtml(announcement)}</div><div id="update-toast" class="toast" hidden><span>A fresh version is ready.</span><button class="button secondary" data-action="update">Update now</button></div>
@@ -268,6 +268,31 @@ function bindEvents(): void {
     if (action === 'data') showDialog('data-dialog');
     if (action === 'unlock') showDialog('unlock-dialog');
     if (action === 'retry') await initialize();
+    if (action === 'export-recovery') {
+      try {
+        const bundle = await exportRecoveryBundle();
+        downloadBlob(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }), `retainer-ledger-recovery-${today()}.json`);
+        announce('Recovery copy downloaded.');
+      } catch {
+        announce('The recovery copy could not be prepared. Try again before clearing data.');
+      }
+    }
+    if (action === 'clear-corrupt-data') showDialog('recovery-dialog');
+    if (action === 'confirm-clear-corrupt-data') {
+      try {
+        await clearLedger();
+        localStorage.removeItem('retainer-ledger:selected-job');
+        selectedJobId = null;
+        jobs = [];
+        records = [];
+        branding = { businessName: '', contactLine: '' };
+        await initialize();
+        announce('The damaged local ledger was cleared. You can start a new ledger now.');
+      } catch (error) {
+        fatalError = error instanceof Error ? error.message : 'The local ledger could not be cleared.';
+        renderApp();
+      }
+    }
     if (action === 'csv') { const job = currentJob(); if (job) downloadCsv(job); }
     if (action === 'pdf') {
       const job = currentJob();

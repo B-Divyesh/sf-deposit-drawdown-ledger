@@ -45,7 +45,7 @@ Set `VITE_BILLING_BASE_URL` only when a non-production billing endpoint is requi
 
 ## Data and privacy
 
-Job data and optional branding stay in browser IndexedDB. The license token and its daily verification verdict use localStorage. Only the token is sent to the Sociobot verification endpoint. There are no analytics, trackers, CDN assets, remote fonts, or third-party runtime scripts. Users should keep a JSON backup before clearing browser storage.
+Job data and optional branding stay in browser IndexedDB. The license token and its daily verification verdict use localStorage. Only the token is sent to the Sociobot verification endpoint. There are no analytics, trackers, CDN assets, remote fonts, or third-party runtime scripts. Users should keep a JSON backup before clearing browser storage. If browser storage is damaged, the app offers a recovery-copy download and an explicit local-data reset so it can open again.
 
 See the in-product `/privacy` and `/terms` pages. The design thesis and generated-image provenance are in [.factory/design.md](.factory/design.md); build verification and known gaps are in [.factory/handoff.md](.factory/handoff.md).
 

@@ -3,7 +3,7 @@
   "name": "Retainer Ledger",
   "short_name": "Ledger",
   "description": "Record deposits, approved drawdowns, and the balance left for every job.",
-  "start_url": "/?source=pwa&v=1",
+  "start_url": "/?source=pwa&v=1.0.1",
   "scope": "/",
   "display": "standalone",
   "background_color": "#080a12",

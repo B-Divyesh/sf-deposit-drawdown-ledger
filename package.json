@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/static-routes.mjs",
     "preview": "vite preview --host 127.0.0.1",
+    "preview:https": "node scripts/preview-https.mjs",
     "test": "vitest run tests/*.test.ts",
     "test:e2e": "playwright test",
     "check": "npm test && npm run build && npm run test:e2e"
@@ -14,6 +15,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.58.2",
+    "@types/node": "^22.14.1",
     "typescript": "5.9.2",
     "vite": "^7.3.6",
     "vite-plugin-singlefile": "^2.3.0",

@@ -1,4 +1,4 @@
-const VERSION = 'retainer-ledger-v1.0.0';
+const VERSION = 'retainer-ledger-v1.0.1';
 const SHELL = `${VERSION}-shell`;
 const RUNTIME = `${VERSION}-runtime`;
 const SHELL_URLS = ['/', '/index.html', '/offline.html', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/assets/hero-night-ledger-480.avif', '/assets/hero-night-ledger-480.webp', '/assets/hero-night-ledger-960.avif', '/assets/hero-night-ledger-960.webp', '/assets/hero-night-ledger-960.jpg'];
@@ -33,7 +33,9 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.hostname.endsWith('sociobot.in')) return;
+  // License verification is the only cross-origin request this app makes.
+  // Do not bypass the worker for this app's own sociobot.in production host.
+  if (url.origin === 'https://api.sociobot.in') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then((response) => {

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { Buffer } from 'node:buffer';
 
 async function createJob(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /start your first ledger/i }).click();
@@ -9,6 +10,21 @@ async function createJob(page: import('@playwright/test').Page) {
   await page.getByLabel('Deposit requested').fill('1000');
   await page.getByRole('button', { name: /create ledger/i }).click();
   await expect(page.getByRole('heading', { name: 'Lantern shop refit' })).toBeVisible();
+}
+
+async function localLedgerCounts(page: import('@playwright/test').Page): Promise<{ jobs: number; records: number }> {
+  return page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('retainer-ledger-v1');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['jobs', 'records'], 'readonly');
+      const jobs = transaction.objectStore('jobs').count();
+      const records = transaction.objectStore('records').count();
+      transaction.oncomplete = () => { db.close(); resolve({ jobs: jobs.result, records: records.result }); };
+      transaction.onerror = () => reject(transaction.error);
+    };
+  }));
 }
 
 test('records deposits and approved drawdowns, then persists the balance', async ({ page }) => {
@@ -64,6 +80,63 @@ test('keeps the app shell available offline', async ({ page, context }) => {
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
   await expect(page.getByText('Offline', { exact: true })).toBeVisible();
+});
+
+test('keeps a controlled production-hostname page reloadable offline', async ({ page, context }) => {
+  await page.goto('https://deposit-drawdown-ledger.sociobot.in:4174/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await page.waitForFunction(async () => (await caches.keys()).some((key) => key.includes('shell')));
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByText('Offline', { exact: true })).toBeVisible();
+});
+
+test('rejects a malformed backup atomically and remains usable after reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /data and backups/i }).click();
+  const malformedBackup = {
+    schemaVersion: 1,
+    exportedAt: '2026-08-28T12:00:00.000Z',
+    jobs: [
+      { id: 'bad-job-1', name: 'First bad job', client: 'QA', reference: '', currency: 'USD', createdAt: '2026-08-28T10:00:00.000Z', archived: false },
+      { id: 'bad-job-2', name: 'Second bad job', client: 'QA', reference: '', currency: 'USD', createdAt: '2026-08-28T10:00:00.000Z', archived: false },
+    ],
+    records: [],
+    branding: { businessName: '', contactLine: '' },
+  };
+  await page.locator('#import-file').setInputFiles({ name: 'malformed-ledger.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(malformedBackup)) });
+  await expect(page.getByText('This file is not a Retainer Ledger v1 backup.')).toBeVisible();
+  await expect.poll(() => localLedgerCounts(page)).toEqual({ jobs: 0, records: 0 });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your local ledger could not open.' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /start your first ledger/i })).toBeVisible();
+});
+
+test('offers an in-product recovery path for corrupt stored data', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('retainer-ledger-v1');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction('jobs', 'readwrite');
+      transaction.objectStore('jobs').put({ id: 'damaged-job', name: 'Damaged import', client: 'QA', reference: '', currency: 'USD', createdAt: '2026-08-28T10:00:00.000Z', archived: false });
+      transaction.oncomplete = () => { db.close(); resolve(); };
+      transaction.onerror = () => reject(transaction.error);
+    };
+  }));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Your local ledger could not open.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download recovery copy' })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear local ledger' }).click();
+  const recoveryDialog = page.getByRole('dialog', { name: 'Start with an empty ledger?' });
+  await expect(recoveryDialog).toBeVisible();
+  await recoveryDialog.getByRole('button', { name: 'Clear local ledger' }).click();
+  await expect(page.getByRole('button', { name: /start your first ledger/i })).toBeVisible();
+  await expect.poll(() => localLedgerCounts(page)).toEqual({ jobs: 0, records: 0 });
 });
 
 test('renders the local-data privacy page', async ({ page }) => {
