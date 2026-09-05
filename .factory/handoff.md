@@ -1,109 +1,74 @@
-# Retainer Ledger — repair handoff
+# Retainer Ledger handoff
 
-## Implementation
+## Product
 
-- **Implementation SHA:** `1990de18b315120ccbaca8aa07d46c951e32a563`
-  (`fix: add isolated demo and release repairs`)
-- **Documentation/test implementation SHA:**
-  `69a7e74cec34e2d37b0a03f8f6c3b0ee10248868`
-  (`test: cover demo reset boundary`). It does not change the product image.
-- **Verification documentation SHA:**
-  `f2e1405f8c10b799c273b6a9fb2d6b76f03220c7`
-  (`docs: record pending static deployment`). It does not change the product image.
-- **Product:** record deposits, payments, approved drawdowns, and the remaining
-  balance for one job; share a statement with the client.
-- **Audience:** independent consultants and tradespeople who take deposits or
-  retainers.
-- **First action:** **Try it with sample data** on the first screen. It opens a
-  populated Elm Street kitchen joinery ledger.
+- **Job:** Record a deposit request, payments, approved drawdowns, and the remaining deposit for a job. Share a clear statement with the client.
+- **Audience:** Independent consultants and tradespeople who take deposits or retainers.
+- **First action:** **Try it with sample data**. It opens the populated Elm Street kitchen joinery ledger.
+- **Product implementation SHA:** `1990de18b315120ccbaca8aa07d46c951e32a563` (`fix: add isolated demo and release repairs`). The current static build is byte-for-byte identical to that implementation because this repair changes test and verification coverage, not client assets.
+- **Checkout-regression SHA:** `155d4986e1d453866a59e033ccf37b8c093a652c` (`test: verify hosted checkout and license response`).
 
-## Repairs completed
+## Repair completed
 
-1. Added `/demo`, a one-click seeded sample in IndexedDB
-   `demo:retainer-ledger-v1`. The persistent banner has Reset demo and Start
-   for real controls. Demo mode cannot read or write the real database; leaving
-   discards the demo. See `.factory/demo.md`.
-2. Added `.factory/claims.json` with 16 public claim bundles and one tagged,
-   outcome-based Playwright test for each. All begin at `/demo`; privacy claims
-   log outgoing requests. Every declared individual command passed from the
-   documented clean setup.
-3. Fixed **Update now** to message `registration.waiting`, handle a missing
-   waiting worker, and reload on `controllerchange`. A two-version browser
-   regression proves the waiting worker activates, the client reloads, and old
-   caches are removed.
-4. Raised global phone targets to at least 44 × 44 px and added a 390 px
-   measurement test for Home, nav, Data, Privacy, and Terms.
-5. Versioned all deployed icons, manifest, and hero assets with `.v3` names;
-   only those versioned assets receive a one-year immutable cache header. The
-   worker and HTML stay revalidatable.
-6. Added static `/demo`, `/privacy`, and `/terms` entries, a designed 404,
-   sitemap, robots sitemap reference, canonical URL, Open Graph/Twitter image,
-   Apple touch icon, and route-specific titles. Removed the catch-all static
-   navigation fallback so unknown hosted paths reach the designed 404.
-7. Rewrote the first screen in plain words, added the required copy audit, and
-   added the verb-first catalog description at `.factory/catalog-description.txt`
-   (also copied to `/work/.evidence/catalog-description.txt`).
+The factory billing operation has restored the registered **Retainer Ledger Unlimited Jobs** offer at **USD 29 one time** in both Live and Test. The product's visible Live checkout link now returns HTTP 303 to the hosted Dodo checkout, and the hosted page returns HTTP 200 without attempting a purchase.
 
-## Earlier finding disposition
+The paid-claim regression now proves observable outcomes instead of only mocking entitlement:
 
-| Finding | Status | Current evidence |
-| --- | --- | --- |
-| Production offline reload | Remains fixed | `@claim:offline-reload` uses its own fresh context, waits for worker control, goes offline, and reloads `/demo`. |
-| Malformed import could corrupt data | Remains fixed | Existing browser test rejects malformed backup atomically; recovery test covers damaged storage. |
-| Update now targeted active worker | Fixed | Two-version worker regression passes. |
-| Four undersized mobile targets | Fixed | 390 px bounding-box regression passes. |
-| Unversioned immutable assets | Fixed | `.v3` assets and scoped immutable headers are in `staticwebapp.config.json`. |
-| Missing discovery/404/metadata | Fixed | Static routes, `404.html`, sitemap, canonical/social metadata, and route titles ship in `dist/`. |
-| First-screen plain wording/demo CTA | Fixed | First screen names the job, audience, sample action, and three factual lines. |
+1. It opens the visible offer from `/demo` and requests its actual checkout link.
+2. It asserts the public checkout returns 303 to the Dodo host and that the hosted checkout responds 200.
+3. It pastes a deliberately invalid token through the real app and confirms that it remains locked with a clear error.
+4. It uses a recorded valid verification response only to cover the local unlock UI, unlimited-job state, and statement-branding control.
+
+The real product remains local-first. One free job, exports, accessibility features, the demo sandbox, and offline use remain available without a license.
+
+Public offer metadata is recorded at `/work/.evidence/billing-offer.json`. The required catalog text is verb-first, under 120 characters, and is present both in `.factory/catalog-description.txt` and `/work/.evidence/catalog-description.txt`.
 
 ## Verification
 
-From a clean dependency install (`npm ci`, 0 vulnerabilities):
+From a clean dependency install on 2026-09-05 UTC:
 
 ```sh
+npm ci
 npm test
 npm run build
 npm run test:e2e
 npm run check
 ```
 
+- `npm ci`: 68 packages, 0 vulnerabilities.
 - `npm test`: 4 passed.
-- `npm run build`: passed; `dist/` has the root, demo, privacy, terms, PWA
-  files, sitemap, and 404 page. Inline initial HTML is 59.83 KB (18.28 KB gzip).
-  The mobile AVIF is 20 KB; no font payload is shipped.
-- `npm run test:e2e`: 54 passed, 2 deliberately project-scoped checks skipped
-  (the desktop two-version worker test and mobile-only target measurement).
-- `npm run check`: passed with the same results.
-- All 16 commands declared in `.factory/claims.json` were each executed
-  separately and passed in both desktop and phone projects.
+- `npm run build`: passed; `dist/` contains the static routes, designed 404, PWA files, sitemap, and manifest. Initial HTML is 59.83 KB (18.28 KB gzip); its inlined JS/CSS stays within the static budget.
+- `npm run test:e2e`: passed: 54 browser checks passed and two deliberate project-scoped checks skipped (desktop-only service-worker update and phone-only touch measurements).
+- `npm run check`: passed.
+- Every one of the 16 commands in `.factory/claims.json` was also run separately from the clean install and passed in the desktop and phone projects.
 
-## Deployment and live check
+Live verification against `https://deposit-drawdown-ledger.sociobot.in` passed:
 
-The static host published the repaired candidate after this handoff was first
-written. Independent verification on 2026-09-05 found matching SHA-256 values
-for live `/`, `/sw.js`, and `/manifest.v3.webmanifest` and the fresh local
-build. Live cold-browser, cache-header, service-worker offline, URL verifier,
-and Axe integration checks are recorded in `.factory/verification-3.md`.
+- `/opt/fleet/lib/verify-url.sh` found HTTP 200, the correct title and language, one h1, a main landmark, no missing image alt text, no unlabeled buttons, and no console errors.
+- Fresh desktop and 390 px phone browsers showed the job, audience, and sample action before scrolling. Both loaded the realistic sample, added a demo-only payment, reset it, entered real mode, and confirmed zero real jobs and records.
+- Axe WCAG 2 A/AA scans on `/`, `/demo`, `/privacy`, and `/terms` had no serious or critical violations.
+- A fresh controlled 390 px live `/demo` page reloaded offline with the sample ledger and its Offline state.
+- `/`, `/demo`, `/privacy`, and `/terms` returned 200. An unknown route returned the intended 404. The checkout endpoint returned 303.
+- The current live root, service worker, and manifest SHA-256 values match the local implementation build: `24dac551…961ca2`, `5ff80b29…dfce88`, and `c0cc4672…ae18aa2`.
 
-## Known gaps
+## Earlier finding disposition
 
-### Independent verification 3 — FAIL
+| Finding | Status | Evidence |
+| --- | --- | --- |
+| Production offline reload | Fixed | Fresh controlled live phone `/demo` reload passed offline. |
+| Malformed import could corrupt data | Fixed | Atomic import and recovery claim tests pass. |
+| Update now targeted the active worker | Fixed | Two-version worker regression passes. |
+| Phone targets below 44 px | Fixed | The mobile measurement regression passes. |
+| Assets lacked immutable versioned caching | Fixed | Versioned assets and scoped immutable headers remain live. |
+| Missing metadata, discovery routes, and 404 | Fixed | Route checks, titles, sitemap, and HTTP 404 pass. |
+| First screen lacked the job, audience, and sample action | Fixed | Fresh desktop and phone checks pass before scrolling. |
+| $29 hosted checkout returned 404 | Fixed externally | Live checkout returns 303 and the Dodo page returns 200. |
+| Paid claim only mocked checkout availability | Fixed | `@claim:one-time-unlock` now performs the live non-purchasing checkout and invalid-license checks. |
 
-Verification on 2026-09-05 reviewed implementation
-`1990de18b315120ccbaca8aa07d46c951e32a563` and documentation/test checkout
-`f2e1405f8c10b799c273b6a9fb2d6b76f03220c7`.
+## Known limitation
 
-The live host now exactly matches the repaired local build, including `/demo`,
-offline reload, the worker-update repair, 44 px phone targets, versioned asset
-caching, metadata, and the designed 404. A clean `npm ci` then all 16 declared
-claim commands, `npm test`, `npm run build`, `npm run test:e2e`, and
-`npm run check` passed (54 browser passes and 2 intentional project-scoped
-skips). The current verification report is `.factory/verification-3.md`.
+No authorized completed purchase or issued customer license was available in this product workspace. The repair verifies the real checkout start and the real invalid-license response; it verifies a successful-license response against the documented API contract with a fixture. Billing QA can perform a separate authorized purchase to prove Dodo's final token delivery, but no credential or payment action was invented here.
 
-The release cannot be accepted yet. The visible $29 **Buy the one-time unlock**
-link resolves to the product's Sociobot checkout URL, which returns HTTP 404.
-This makes the paid user path unavailable and leaves the paid claim's
-checkout-start coverage incomplete. Factory billing registration must be
-restored, then the live link crawl and checkout-start smoke test rerun. No
-product code, deployment configuration, or credentials were changed by this
-verification.
+## Run and deploy
+
+Run locally with `npm ci && npm run dev`. Run the full gate with `npm run check`. Build with `npm run build`; deploy the resulting `dist/` directory via the product's existing static-host workflow. No backend, product database, secrets, or infrastructure configuration is required or was changed.
