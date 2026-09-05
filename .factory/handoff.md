@@ -1,52 +1,38 @@
-# Retainer Ledger — independent QA handoff
+# Retainer Ledger — review handoff
 
 ## Release status: FAIL
 
-Candidate `f0e2d4b0d2981101eaea59537c37a6f33dbd635d` was independently tested on
-2026-08-28 against <https://deposit-drawdown-ledger.sociobot.in>. Production
-bytes match the candidate build exactly. Do not promote this candidate because
-the PWA's visible **Update now** action cannot activate its waiting worker.
+Review 1 on 2026-09-05 tested implementation
+`0e2804745b25bd05ff0b8899da79fe48bcc62b5d` against
+<https://deposit-drawdown-ledger.sociobot.in>. The checkout documentation SHA
+was `78a61ea52d5342ab16ea994d3b665449e897a1a5`; later commits only changed
+reports. Live root, service worker, and manifest hashes match the local build.
 
-Full evidence: [`.factory/verification-2.md`](verification-2.md).
+The full result is in [`.factory/review-1.md`](review-1.md). It has **7
+findings and 15 untested public claim bundles**. Do not release this version.
 
-## Blocking defect
+## What was verified
 
-**P1 — broken PWA update action.** A controlled two-version test reached the
-intended waiting-worker state and displayed the update toast. Pressing **Update
-now** left the new worker waiting and the old worker active. The handler posts
-`SKIP_WAITING` to `navigator.serviceWorker.controller` (the old active worker),
-not `registration.waiting`. A control message sent directly to the waiting
-worker activated it, reloaded the page, and removed the old caches.
+- `npm ci` completed with 0 vulnerabilities; `npm test` (4/4), `npm run build`,
+  `npm run test:e2e` (18/18), and `npm run check` passed.
+- Fresh desktop and phone browser checks covered a normal ledger, invalid and
+  overdraw paths, reload persistence, PDF/CSV export, malformed import,
+  corrupt-data recovery, keyboard focus, 390 px layout, reduced motion, legal
+  pages, privacy request origins, live offline reload, and axe serious/critical
+  checks.
+- `/opt/fleet/lib/verify-url.sh` passed on the live URL. No console errors were
+  observed in fresh live loads.
 
-Required next step: message `registration.waiting`, handle worker races, and add
-a two-version browser test that proves controller change, reload, and old-cache
-cleanup.
+## Known gaps and next steps
 
-## Other defects
-
-- **P2 accessibility:** at 390 px, Home is 42 × 42, Data is 42 × 44, Privacy is
-  42.6 × 19.5, and Terms is 35.4 × 19.5 CSS px; all miss the 44 × 44 target.
-- **P2 caching:** checked static assets use
-  `public, must-revalidate, max-age=30`, not content-versioned immutable caching.
-
-## Verification summary
-
-- `npm ci`: 0 vulnerabilities.
-- `npm test`: 4/4 passed.
-- Explicit TypeScript check and `npm run build`: passed; `dist/` produced.
-- `npm run test:e2e`: 18/18 desktop/mobile tests passed.
-- `npm run check`: passed the complete aggregate gate again.
-- Live normal, boundary, invalid/recovery, persistence, PDF, CSV, JSON backup,
-  atomic import, corruption recovery, privacy, license, keyboard, 390 px,
-  reduced-motion, offline-data reload, and policy checks otherwise passed.
-- Live axe serious/critical findings: 0 across empty, populated, mobile, privacy,
-  and terms states. Console/page errors: 0.
-- Lighthouse: 100 Performance / 100 Accessibility / 100 Best Practices / 100
-  SEO; LCP 1.2 s, TBT 0 ms, CLS 0, 69 KiB transfer.
-- Bundle budgets pass: inline JS 36,754 B; inline CSS 15,720 B; no fonts; mobile
-  hero 17,543 B.
-- Root, worker, manifest, offline page, legal routes, icon, and mobile hero all
-  hash-match the fresh local candidate build.
+1. Build the required separate, seeded sample sandbox and add `.factory/demo.md`.
+2. Add `.factory/claims.json` and a passing demo-based `@claim:` test for every
+   public claim; add the missing copy audit.
+3. Fix **Update now** to post `SKIP_WAITING` to `registration.waiting`, then
+   prove a true two-version worker update.
+4. Increase the four undersized phone targets; version static assets before
+   immutable caching; add a designed 404, sitemap, canonical/social metadata,
+   and the missing first-screen plain-language job and audience copy.
 
 ## Re-run
 
@@ -56,6 +42,5 @@ npm run check
 /opt/fleet/lib/verify-url.sh https://deposit-drawdown-ledger.sociobot.in <evidence-dir>
 ```
 
-After fixing the blocker, additionally rerun a genuine two-version service
-worker update; same-version `registration.update()` and offline reload alone do
-not exercise this failure.
+After repairs, run every declared claim command from a new browser context using
+only the demo entry point, plus the real two-version PWA update test.
