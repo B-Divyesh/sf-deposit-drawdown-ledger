@@ -56,7 +56,7 @@ test('records deposits and approved drawdowns, then persists the balance', async
 
 test('has no serious accessibility violations in the empty state', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
   const results = await new AxeBuilder({ page: page as never }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
@@ -66,9 +66,28 @@ test('loads without console or page errors', async ({ page }) => {
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
+});
+
+test('keeps header and footer touch targets at least 44 pixels on a phone', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile', 'Touch target measurements apply to the configured phone project.');
+  await page.goto('/');
+  const targets = [
+    page.getByRole('link', { name: 'Retainer Ledger home' }),
+    page.getByRole('link', { name: 'Ledger', exact: true }),
+    page.getByRole('link', { name: 'Demo', exact: true }),
+    page.getByRole('link', { name: 'Privacy', exact: true }).first(),
+    page.getByRole('button', { name: 'Data and backups' }),
+    page.getByRole('link', { name: 'Terms', exact: true }),
+  ];
+  for (const target of targets) {
+    const box = await target.boundingBox();
+    expect(box, `${await target.innerText()} should have a box`).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
 });
 
 test('keeps the app shell available offline', async ({ page, context }) => {
@@ -78,7 +97,7 @@ test('keeps the app shell available offline', async ({ page, context }) => {
   await page.waitForFunction(async () => (await caches.keys()).some((key) => key.includes('shell')));
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
   await expect(page.getByText('Offline', { exact: true })).toBeVisible();
 });
 
@@ -89,8 +108,34 @@ test('keeps a controlled production-hostname page reloadable offline', async ({ 
   await page.waitForFunction(async () => (await caches.keys()).some((key) => key.includes('shell')));
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
   await expect(page.getByText('Offline', { exact: true })).toBeVisible();
+});
+
+test('activates a waiting worker from Update now, reloads, and removes old caches', async ({ page }) => {
+  test.skip(test.info().project.name !== 'chromium', 'The two-version server is intentionally shared with the desktop regression only.');
+  await page.addInitScript(() => {
+    const loads = Number(sessionStorage.getItem('qa-worker-loads') ?? '0');
+    sessionStorage.setItem('qa-worker-loads', String(loads + 1));
+  });
+  await page.goto('http://127.0.0.1:4175/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await page.reload();
+  await expect.poll(() => page.evaluate(async () => (await caches.keys()).some((key) => key === 'retainer-ledger-qa-a-shell'))).toBe(true);
+
+  await page.evaluate(() => fetch('/__qa-worker-version?version=qa-b'));
+  await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update(); });
+  await expect(page.getByText('A fresh version is ready.')).toBeVisible();
+  const reloaded = page.waitForEvent('load');
+  await page.getByRole('button', { name: 'Update now' }).click();
+  await reloaded;
+  await expect.poll(async () => page.evaluate(async () => ({
+    caches: await caches.keys(),
+    loads: Number(sessionStorage.getItem('qa-worker-loads') ?? '0'),
+    controlled: Boolean(navigator.serviceWorker.controller),
+  }))).toMatchObject({ caches: expect.arrayContaining(['retainer-ledger-qa-b-shell']), loads: 3, controlled: true });
+  await expect.poll(async () => page.evaluate(async () => (await caches.keys()).some((key) => key.startsWith('retainer-ledger-qa-a-')))).toBe(false);
 });
 
 test('rejects a malformed backup atomically and remains usable after reload', async ({ page }) => {
@@ -110,7 +155,7 @@ test('rejects a malformed backup atomically and remains usable after reload', as
   await expect(page.getByText('This file is not a Retainer Ledger v1 backup.')).toBeVisible();
   await expect.poll(() => localLedgerCounts(page)).toEqual({ jobs: 0, records: 0 });
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Retainer Ledger' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your local ledger could not open.' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /start your first ledger/i })).toBeVisible();
 });

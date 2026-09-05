@@ -53,6 +53,13 @@ Prompt sheet:
 
 Generation: Azure AI Foundry factory image deployment via `/opt/fleet/lib/gen-image.sh`, 2026-08-28. Generated imagery is original to this product. The selected source and exact prompt live in `assets/src/hero-night-ledger-v2.{png,json}`; responsive AVIF, WebP, and JPEG derivatives ship locally. The first candidate remains in `assets/src/` as provenance but was rejected because a calculator introduced tiny keypad numerals. Candidate v2 was reviewed at full resolution: the paper and tally slots are blank, with no text, logos, people, seams, or unintended symbols. Hand-authored SVG icons and PWA marks are MIT-licensed with the repository.
 
+The current shipped derivatives carry a `.v3` filename so they can be cached
+immutably: the four responsive hero formats, the three PWA icons, and the
+`1200 × 630` `retainer-ledger-social.v3.jpg` social preview. The social preview
+is a 2026-09-05 center crop and resize of the reviewed v2 source; it introduces
+no new generated content. It was checked for text, logos, people, seams, and
+unintended symbols before shipping.
+
 ## Responsive and performance policy
 
 The phone version drops decorative rail copy, stacks the job identity above the balance, and makes the primary add-record button full-width. The hero is shown only in the no-job state and is supplied as 480/960 px WebP sources with explicit dimensions. The mobile source must remain under 300 KB. Initial JS is capped at 200 KB and CSS at 50 KB; there are no runtime fonts, scripts, trackers, or CDNs.

@@ -1,13 +1,27 @@
 import type { Branding, CurrencyCode, Job, LedgerBundle, LedgerRecord } from './types';
 
-const DB_NAME = 'retainer-ledger-v1';
+const REAL_DB_NAME = 'retainer-ledger-v1';
+const DEMO_DB_NAME = 'demo:retainer-ledger-v1';
 const DB_VERSION = 1;
 const DEFAULT_BRANDING: Branding = { businessName: '', contactLine: '' };
 const CURRENCIES = new Set<CurrencyCode>(['USD', 'EUR', 'GBP', 'INR', 'CAD', 'AUD']);
 
+export function isDemoMode(): boolean {
+  const url = new URL(window.location.href);
+  return url.pathname.replace(/\/$/, '') === '/demo' || url.searchParams.get('demo') === '1';
+}
+
+export function databaseName(): string {
+  return isDemoMode() ? DEMO_DB_NAME : REAL_DB_NAME;
+}
+
+export function selectedJobStorageKey(): string {
+  return isDemoMode() ? 'demo:retainer-ledger:selected-job' : 'retainer-ledger:selected-job';
+}
+
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(databaseName(), DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('jobs')) db.createObjectStore('jobs', { keyPath: 'id' });
@@ -182,6 +196,56 @@ export async function clearLedger(): Promise<void> {
     transaction.objectStore('jobs').clear();
     transaction.objectStore('records').clear();
     transaction.objectStore('settings').clear();
+    await transactionDone(transaction);
+  } finally {
+    db.close();
+  }
+}
+
+const SAMPLE_JOB: Job = {
+  id: 'demo-elm-street-joinery',
+  name: 'Elm Street kitchen joinery',
+  client: 'Hawthorn Café',
+  reference: 'HC-204',
+  currency: 'USD',
+  createdAt: '2026-08-04T09:00:00.000Z',
+  updatedAt: '2026-08-21T16:30:00.000Z',
+  archived: false,
+};
+
+const SAMPLE_RECORDS: LedgerRecord[] = [
+  {
+    id: 'demo-request', jobId: SAMPLE_JOB.id, kind: 'request', amountCents: 480_000,
+    occurredOn: '2026-08-04', description: 'Initial deposit requested', reference: 'HC-204', createdAt: '2026-08-04T09:00:00.000Z',
+  },
+  {
+    id: 'demo-payment-one', jobId: SAMPLE_JOB.id, kind: 'payment', amountCents: 360_000,
+    occurredOn: '2026-08-07', description: 'Deposit received by bank transfer', reference: 'BANK-9204', createdAt: '2026-08-07T10:18:00.000Z',
+  },
+  {
+    id: 'demo-payment-two', jobId: SAMPLE_JOB.id, kind: 'payment', amountCents: 120_000,
+    occurredOn: '2026-08-12', description: 'Second deposit payment received', reference: 'BANK-9366', createdAt: '2026-08-12T14:07:00.000Z',
+  },
+  {
+    id: 'demo-drawdown', jobId: SAMPLE_JOB.id, kind: 'drawdown', amountCents: 220_000,
+    occurredOn: '2026-08-18', description: 'Approved site survey and joinery drawings', reference: 'APPROVAL-18', createdAt: '2026-08-18T15:42:00.000Z',
+  },
+  {
+    id: 'demo-adjustment', jobId: SAMPLE_JOB.id, kind: 'adjustment', amountCents: -15_000,
+    occurredOn: '2026-08-21', description: 'Credit agreed for revised hardware', reference: 'CREDIT-21', createdAt: '2026-08-21T16:30:00.000Z',
+  },
+];
+
+/** Seeds only the demo database. Callers must never invoke this in real mode. */
+export async function seedDemoLedger(): Promise<void> {
+  if (!isDemoMode()) return;
+  const current = await loadLedger();
+  if (current.jobs.length || current.records.length) return;
+  const db = await openDatabase();
+  try {
+    const transaction = db.transaction(['jobs', 'records', 'settings'], 'readwrite');
+    transaction.objectStore('jobs').add(SAMPLE_JOB);
+    for (const record of SAMPLE_RECORDS) transaction.objectStore('records').add(record);
     await transactionDone(transaction);
   } finally {
     db.close();

@@ -1,7 +1,7 @@
-const VERSION = 'retainer-ledger-v1.0.1';
+const VERSION = 'retainer-ledger-v1.1.0';
 const SHELL = `${VERSION}-shell`;
 const RUNTIME = `${VERSION}-runtime`;
-const SHELL_URLS = ['/', '/index.html', '/offline.html', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/assets/hero-night-ledger-480.avif', '/assets/hero-night-ledger-480.webp', '/assets/hero-night-ledger-960.avif', '/assets/hero-night-ledger-960.webp', '/assets/hero-night-ledger-960.jpg'];
+const SHELL_URLS = ['/', '/index.html', '/offline.html', '/manifest.v3.webmanifest', '/icon.v3.svg', '/icons/icon-192.v3.png', '/icons/icon-512.v3.png', '/icons/icon-maskable-512.v3.png', '/assets/hero-night-ledger-480.v3.avif', '/assets/hero-night-ledger-480.v3.webp', '/assets/hero-night-ledger-960.v3.avif', '/assets/hero-night-ledger-960.v3.webp', '/assets/hero-night-ledger-960.v3.jpg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

@@ -10,6 +10,7 @@
     "preview:https": "node scripts/preview-https.mjs",
     "test": "vitest run tests/*.test.ts",
     "test:e2e": "playwright test",
+    "test:claims": "playwright test tests/e2e/claims.spec.ts",
     "check": "npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {

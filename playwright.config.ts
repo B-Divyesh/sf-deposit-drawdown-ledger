@@ -17,6 +17,7 @@ export default defineConfig({
   webServer: [
     { command: 'npm run build && npm run preview', url: 'http://127.0.0.1:4173', reuseExistingServer: false, timeout: 120_000 },
     { command: 'npm run build && npm run preview:https', url: 'https://127.0.0.1:4174', reuseExistingServer: false, ignoreHTTPSErrors: true, timeout: 120_000 },
+    { command: 'npm run build && node scripts/worker-update-server.mjs', url: 'http://127.0.0.1:4175/', reuseExistingServer: false, timeout: 120_000 },
   ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

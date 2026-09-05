@@ -1,0 +1,114 @@
+[
+  {
+    "id": "demo-isolation",
+    "claim": "The sample uses a separate database and never changes real data.",
+    "where": "demo banner, README",
+    "test": "npm run test:e2e -- --grep @claim:demo-isolation",
+    "sandbox": "/demo; add a sample payment, then open real mode and assert it has no jobs or records."
+  },
+  {
+    "id": "requested-not-held",
+    "claim": "Keeps requested deposits separate from money received.",
+    "where": "landing page, README",
+    "test": "npm run test:e2e -- --grep @claim:requested-not-held",
+    "sandbox": "/demo sample job; assert requested and payments totals separately."
+  },
+  {
+    "id": "record-types-and-balance",
+    "claim": "Records deposit requests, payments, drawdowns, and adjustments and shows the remaining deposit.",
+    "where": "landing page, README",
+    "test": "npm run test:e2e -- --grep @claim:record-types-and-balance",
+    "sandbox": "/demo sample job; assert all four record types and its remaining balance."
+  },
+  {
+    "id": "append-only-adjustments",
+    "claim": "Keeps corrections as dated adjustment records.",
+    "where": "ledger activity note, README",
+    "test": "npm run test:e2e -- --grep @claim:append-only-adjustments",
+    "sandbox": "/demo; add an adjustment and assert a new persisted trail entry."
+  },
+  {
+    "id": "timestamped-pdf",
+    "claim": "Exports a timestamped one-page PDF statement.",
+    "where": "ledger button, README",
+    "test": "npm run test:e2e -- --grep @claim:timestamped-pdf",
+    "sandbox": "/demo; download and inspect the PDF header, timestamp, and one-page count."
+  },
+  {
+    "id": "complete-csv",
+    "claim": "Exports every activity row as CSV.",
+    "where": "ledger button, README",
+    "test": "npm run test:e2e -- --grep @claim:complete-csv",
+    "sandbox": "/demo; download CSV and count its header and five sample rows."
+  },
+  {
+    "id": "json-backup",
+    "claim": "Exports and imports JSON backups without replacing existing records.",
+    "where": "data dialog, README",
+    "test": "npm run test:e2e -- --grep @claim:json-backup",
+    "sandbox": "/demo; inspect backup then import a distinct job alongside the sample."
+  },
+  {
+    "id": "indexeddb-persistence",
+    "claim": "Keeps records in this browser after a reload.",
+    "where": "README",
+    "test": "npm run test:e2e -- --grep @claim:indexeddb-persistence",
+    "sandbox": "/demo; add a payment, reload, and observe the saved entry."
+  },
+  {
+    "id": "offline-reload",
+    "claim": "Works offline after the first visit.",
+    "where": "landing page, README",
+    "test": "npm run test:e2e -- --grep @claim:offline-reload",
+    "sandbox": "fresh browser context; visit /demo, wait for control, set offline, and reload."
+  },
+  {
+    "id": "no-account-or-sync",
+    "claim": "Does not require an account or cloud sync.",
+    "where": "landing page, README",
+    "test": "npm run test:e2e -- --grep @claim:no-account-or-sync",
+    "sandbox": "/demo; assert usable ledger and no account or sign-in controls."
+  },
+  {
+    "id": "local-only-data",
+    "claim": "Keeps ledger data on this device.",
+    "where": "landing page, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:local-only-data",
+    "sandbox": "/demo; record activity while logging requests and allow only the product origin."
+  },
+  {
+    "id": "no-trackers-or-cdns",
+    "claim": "Uses no analytics, trackers, CDN assets, or third-party runtime scripts.",
+    "where": "privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:no-trackers-or-cdns",
+    "sandbox": "/demo; record every page request and assert each is same-origin."
+  },
+  {
+    "id": "license-request-excludes-ledger-data",
+    "claim": "License verification sends only the license token, not ledger entries.",
+    "where": "privacy page, unlock dialog, README",
+    "test": "npm run test:e2e -- --grep @claim:license-request-excludes-ledger-data",
+    "sandbox": "/demo with a mocked valid license; inspect the verification request."
+  },
+  {
+    "id": "damaged-data-recovery",
+    "claim": "Offers a recovery copy and reset if local data is damaged.",
+    "where": "README",
+    "test": "npm run test:e2e -- --grep @claim:damaged-data-recovery",
+    "sandbox": "/demo; insert malformed stored data, reload, and complete the recovery reset."
+  },
+  {
+    "id": "one-free-job",
+    "claim": "Includes one complete job free.",
+    "where": "landing page, unlock dialog, README",
+    "test": "npm run test:e2e -- --grep @claim:one-free-job",
+    "sandbox": "/demo's one seeded job; attempt a second job and observe the offer before creation."
+  },
+  {
+    "id": "one-time-unlock",
+    "claim": "A $29 one-time unlock enables unlimited jobs and custom statement branding.",
+    "where": "landing page, unlock dialog, terms page, README",
+    "test": "npm run test:e2e -- --grep @claim:one-time-unlock",
+    "sandbox": "/demo; inspect the offer, then mock a valid license and observe unlocked branding controls."
+  }
+]

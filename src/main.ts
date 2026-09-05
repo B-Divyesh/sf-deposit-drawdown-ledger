@@ -2,7 +2,7 @@ import './styles.css';
 import { calculateTotals, formatMoney, parseMoney, recordEffect } from './calculations';
 import { buildStatementPdf, safeFilename } from './pdf';
 import { checkoutUrl, consumeReturnedLicense, getLicense, isPaidFromCache, storeLicense, verifyLicense } from './license';
-import { addJob, addRecord, clearLedger, exportBundle, exportRecoveryBundle, importBundle, loadLedger, saveBranding } from './storage';
+import { addJob, addRecord, clearLedger, exportBundle, exportRecoveryBundle, importBundle, isDemoMode, loadLedger, saveBranding, seedDemoLedger, selectedJobStorageKey } from './storage';
 import type { Branding, CurrencyCode, Job, LedgerRecord, RecordKind } from './types';
 
 const app = document.querySelector<HTMLDivElement>('#app') as HTMLDivElement;
@@ -11,11 +11,13 @@ if (!app) throw new Error('App root was not found.');
 let jobs: Job[] = [];
 let records: LedgerRecord[] = [];
 let branding: Branding = { businessName: '', contactLine: '' };
-let selectedJobId = localStorage.getItem('retainer-ledger:selected-job');
+const BUILD_ID = 'v1.1.0';
+let selectedJobId = localStorage.getItem(selectedJobStorageKey());
 let paid = isPaidFromCache();
 let loading = true;
 let fatalError = '';
 let announcement = '';
+let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 
 const icon = (name: 'plus' | 'arrow' | 'download' | 'lock' | 'data' | 'receipt') => {
   const paths = {
@@ -55,6 +57,51 @@ function announce(message: string): void {
   if (live) live.textContent = message;
 }
 
+function setRouteMetadata(page: 'ledger' | 'demo' | 'privacy' | 'terms'): void {
+  const copy = {
+    ledger: {
+      title: 'Retainer Ledger — record deposit drawdowns',
+      description: 'Record deposits, approved drawdowns, and the balance left for every job.',
+      path: '/',
+    },
+    demo: {
+      title: 'Demo — Retainer Ledger',
+      description: 'Try a sample deposit ledger with payments, drawdowns, and a remaining balance.',
+      path: '/demo',
+    },
+    privacy: {
+      title: 'Privacy — Retainer Ledger',
+      description: 'Learn how Retainer Ledger keeps job records in this browser.',
+      path: '/privacy',
+    },
+    terms: {
+      title: 'Terms — Retainer Ledger',
+      description: 'Read the terms for the Retainer Ledger record-keeping utility.',
+      path: '/terms',
+    },
+  }[page];
+  document.title = copy.title;
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', copy.description);
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href', `https://deposit-drawdown-ledger.sociobot.in${copy.path}`);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', copy.title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', copy.description);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content', copy.title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute('content', copy.description);
+}
+
+function renderHeader(withControls = true): string {
+  const controls = withControls ? `<div class="header-actions"><span class="network-status ${navigator.onLine ? '' : 'offline'}"><i></i>${navigator.onLine ? 'Local' : 'Offline'}</span><button class="header-button" data-action="data" aria-label="Data and backups">${icon('data')} <span>Data</span></button><button class="header-button" data-action="unlock">${paid ? 'Unlocked' : `${icon('lock')} Unlock`}</button></div>` : '';
+  return `<header class="site-header"><a class="brand" href="/" data-route aria-label="Retainer Ledger home"><span class="brand-mark">${icon('receipt')}</span><span>Retainer Ledger</span></a><nav class="primary-nav" aria-label="Primary"><a href="/" data-route>Ledger</a><a href="/demo" data-route>Demo</a><a href="/privacy" data-route>Privacy</a></nav>${controls}</header>`;
+}
+
+function renderFooter(): string {
+  return `<footer class="site-footer"><span>Records stay on this device.</span><span><a href="/privacy" data-route>Privacy</a><a href="/terms" data-route>Terms</a><span>Built by Param Factory</span><span>${BUILD_ID}</span></span></footer>`;
+}
+
+function renderDemoBanner(): string {
+  return `<aside class="demo-banner" aria-label="Sample data mode"><strong>Demo — sample data, nothing is saved</strong><span>Explore the Elm Street kitchen job without changing your records.</span><span class="demo-actions"><button class="text-button" data-action="reset-demo">Reset demo</button><button class="text-button" data-action="start-real">Start for real</button></span></aside>`;
+}
+
 function showDialog(id: string): void {
   const dialog = document.querySelector<HTMLDialogElement>(`#${id}`);
   dialog?.showModal();
@@ -76,10 +123,10 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 function renderLegal(page: 'privacy' | 'terms'): void {
   const privacy = page === 'privacy';
-  document.title = `${privacy ? 'Privacy' : 'Terms'} — Retainer Ledger`;
+  setRouteMetadata(page);
   app.innerHTML = `
-    <header class="site-header"><a class="brand" href="/" data-route><span class="brand-mark">${icon('receipt')}</span><span>Retainer Ledger</span></a></header>
-    <main id="main" class="legal-page">
+    ${renderHeader(false)}
+    <main id="main" class="legal-page" tabindex="-1">
       <p class="eyebrow">Plain-language ${privacy ? 'privacy' : 'terms'}</p>
       <h1>${privacy ? 'Your records stay on this device.' : 'A record-keeping utility, not advice.'}</h1>
       ${privacy ? `
@@ -93,14 +140,14 @@ function renderLegal(page: 'privacy' | 'terms'): void {
         <h2>Acceptable use</h2><p>Do not use the product to create deceptive records or misrepresent a payment. You retain responsibility for statements you share.</p>`}
       <p><a class="text-link" href="/" data-route>← Back to the ledger</a></p>
     </main>
-    <footer class="site-footer"><span>Retainer Ledger</span><span>Effective 28 August 2026</span></footer>`;
+    ${renderFooter()}<div id="live-region" class="sr-only" aria-live="polite">${escapeHtml(announcement)}</div>`;
   bindRoutes();
 }
 
 function renderLoading(): void {
   app.innerHTML = `
     <header class="site-header"><span class="brand"><span class="brand-mark">${icon('receipt')}</span><span>Retainer Ledger</span></span></header>
-    <main id="main" class="loading-state"><h1>Opening your ledger…</h1><p>Your records are loaded from this device.</p><div class="loading-lines" aria-hidden="true"></div></main>`;
+    <main id="main" class="loading-state" tabindex="-1"><h1>Opening your ledger…</h1><p>Your records are loaded from this device.</p><div class="loading-lines" aria-hidden="true"></div></main>`;
 }
 
 function recordLabel(kind: RecordKind): string {
@@ -123,8 +170,8 @@ function renderRecordRows(job: Job, jobRecords: LedgerRecord[]): string {
 
 function renderEmpty(): string {
   return `<section class="empty-ledger" aria-labelledby="empty-title">
-    <div class="empty-art"><picture><source type="image/avif" srcset="/assets/hero-night-ledger-480.avif 480w, /assets/hero-night-ledger-960.avif 960w" sizes="(max-width: 680px) calc(100vw - 72px), (max-width: 900px) 520px, 42vw"><source type="image/webp" srcset="/assets/hero-night-ledger-480.webp 480w, /assets/hero-night-ledger-960.webp 960w" sizes="(max-width: 680px) calc(100vw - 72px), (max-width: 900px) 520px, 42vw"><img src="/assets/hero-night-ledger-960.jpg" width="960" height="640" alt="A blank cream ledger surrounded by cyan deposit tokens and amber work tokens on a rain-dark market counter." decoding="async" fetchpriority="high"></picture><span class="art-label">Money held → work approved</span></div>
-    <div class="empty-copy"><p class="eyebrow">A clean trail, from deposit to done</p><h2 id="empty-title">Give every deposit a story your client can follow.</h2><p>Start a job, record what arrived, and draw down only the work that was approved. Corrections stay visible.</p><button class="button primary" data-action="new-job">${icon('plus')} Start your first ledger</button><p class="micro">Free for one complete job. No account or cloud sync.</p></div>
+    <div class="empty-art"><picture><source type="image/avif" srcset="/assets/hero-night-ledger-480.v3.avif 480w, /assets/hero-night-ledger-960.v3.avif 960w" sizes="(max-width: 680px) calc(100vw - 72px), (max-width: 900px) 520px, 42vw"><source type="image/webp" srcset="/assets/hero-night-ledger-480.v3.webp 480w, /assets/hero-night-ledger-960.v3.webp 960w" sizes="(max-width: 680px) calc(100vw - 72px), (max-width: 900px) 520px, 42vw"><img src="/assets/hero-night-ledger-960.v3.jpg" width="960" height="640" alt="A blank cream ledger surrounded by cyan deposit tokens and amber work tokens on a rain-dark market counter." decoding="async" fetchpriority="high"></picture><span class="art-label">Money held → work approved</span></div>
+    <div class="empty-copy"><p class="eyebrow">Retainer Ledger</p><h1 id="empty-title">Record deposits and show what work used them</h1><p>For consultants and tradespeople who take deposits and need to show clients what remains.</p><div class="landing-actions"><a class="button primary" href="/demo" data-route>${icon('receipt')} Try it with sample data</a><span>See a realistic job with its balance and activity trail.</span></div><button class="button secondary" data-action="new-job">${icon('plus')} Start your first ledger</button><ul class="plain-facts"><li>Records stay on this device.</li><li>Works offline after the first visit.</li><li>One job is free. More jobs cost $29 one time.</li></ul></div>
   </section>`;
 }
 
@@ -134,7 +181,7 @@ function renderActive(job: Job): string {
   const negative = totals.remaining < 0;
   return `<section class="ledger-workspace" aria-label="Selected job ledger">
     <div class="job-heading">
-      <div><p class="eyebrow">${escapeHtml(job.client)}${job.reference ? ` · ${escapeHtml(job.reference)}` : ''}</p><h2>${escapeHtml(job.name)}</h2><p>Created ${new Date(job.createdAt).toLocaleDateString()}</p></div>
+      <div><p class="eyebrow">${escapeHtml(job.client)}${job.reference ? ` · ${escapeHtml(job.reference)}` : ''}</p><h1>Deposit ledger for ${escapeHtml(job.name)}</h1><p>Created ${new Date(job.createdAt).toLocaleDateString()}</p></div>
       <div class="remaining ${negative ? 'negative' : ''}"><span>Deposit remaining</span><strong>${formatMoney(totals.remaining, job.currency)}</strong><small>${negative ? 'Drawdowns exceed recorded funds' : 'Payments − drawdowns ± adjustments'}</small></div>
     </div>
     <div class="totals-grid" aria-label="Job totals">
@@ -166,16 +213,16 @@ function renderApp(): void {
   if (loading) return renderLoading();
   const page = location.pathname.replace(/\/$/, '');
   if (page === '/privacy' || page === '/terms') return renderLegal(page.slice(1) as 'privacy' | 'terms');
-  document.title = 'Retainer Ledger — clear deposit drawdowns';
+  const demo = isDemoMode();
+  setRouteMetadata(demo ? 'demo' : 'ledger');
   const job = currentJob();
   if (job && selectedJobId !== job.id) selectedJobId = job.id;
-  const online = navigator.onLine;
   app.innerHTML = `
-    <header class="site-header"><a class="brand" href="/" aria-label="Retainer Ledger home"><span class="brand-mark">${icon('receipt')}</span><span>Retainer Ledger</span></a><div class="header-actions"><span class="network-status ${online ? '' : 'offline'}"><i></i>${online ? 'Local' : 'Offline'}</span><button class="header-button" data-action="data" aria-label="Data and backups">${icon('data')} <span>Data</span></button><button class="header-button" data-action="unlock">${paid ? 'Unlocked' : `${icon('lock')} Unlock`}</button></div></header>
-    <main id="main"><div class="app-title"><div><p class="eyebrow">Deposit → drawdown → balance</p><h1>Retainer Ledger</h1></div><p>A client-ready record of money held and work approved.</p></div>
-      ${fatalError ? `<div class="fatal-error" role="alert"><h2>Your local ledger could not open.</h2><p>${escapeHtml(fatalError)}</p><p>Nothing has been sent anywhere. Save a recovery copy before clearing this browser’s damaged local data.</p><div class="dialog-actions"><button class="button secondary" data-action="export-recovery">Download recovery copy</button><button class="button quiet" data-action="retry">Try again</button><button class="button primary" data-action="clear-corrupt-data">Clear local ledger</button></div></div><dialog id="recovery-dialog" aria-labelledby="recovery-title"><div class="dialog-form"><div class="dialog-head"><div><p class="eyebrow">Clear local data</p><h2 id="recovery-title">Start with an empty ledger?</h2></div><button class="icon-button" data-close="recovery-dialog" aria-label="Close recovery dialog">×</button></div><p>This removes all Retainer Ledger jobs, records, and branding from this browser. Download a recovery copy first if you may need the damaged data.</p><div class="dialog-actions"><button class="button quiet" data-close="recovery-dialog">Cancel</button><button class="button primary" data-action="confirm-clear-corrupt-data">Clear local ledger</button></div></div></dialog>` : `<div class="app-shell"><aside class="job-rail"><div class="rail-head"><div><p class="eyebrow">Your work</p><h2>Jobs</h2></div><button class="icon-button add-job" data-action="new-job" aria-label="Create a job">${icon('plus')}</button></div>${jobs.length ? `<nav aria-label="Job ledgers"><ul class="job-list">${jobs.map((item) => { const itemTotals = calculateTotals(recordsFor(item.id)); return `<li><button class="job-button ${item.id === job?.id ? 'active' : ''}" data-job-id="${item.id}" ${item.id === job?.id ? 'aria-current="page"' : ''}><span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.client)}</small><strong>${formatMoney(itemTotals.remaining, item.currency)}</strong></button></li>`; }).join('')}</ul></nav>` : '<p class="rail-empty">Your job ledgers will line up here.</p>'}<div class="rail-footer"><span>${paid ? 'Unlimited ledgers' : 'Free ledger · 1 job'}</span>${!paid ? '<button class="text-button" data-action="unlock">See unlock</button>' : ''}</div></aside><div class="workbench">${job ? renderActive(job) : renderEmpty()}</div></div>`}
+    ${renderHeader()}
+    <main id="main" tabindex="-1">${demo ? renderDemoBanner() : ''}
+      ${fatalError ? `<div class="fatal-error" role="alert"><h1>Your local ledger could not open.</h1><p>${escapeHtml(fatalError)}</p><p>Nothing has been sent anywhere. Save a recovery copy before clearing this browser’s damaged local data.</p><div class="dialog-actions"><button class="button secondary" data-action="export-recovery">Download recovery copy</button><button class="button quiet" data-action="retry">Try again</button><button class="button primary" data-action="clear-corrupt-data">Clear local ledger</button></div></div><dialog id="recovery-dialog" aria-labelledby="recovery-title"><div class="dialog-form"><div class="dialog-head"><div><p class="eyebrow">Clear local data</p><h2 id="recovery-title">Start with an empty ledger?</h2></div><button class="icon-button" data-close="recovery-dialog" aria-label="Close recovery dialog">×</button></div><p>This removes all Retainer Ledger jobs, records, and branding from this browser. Download a recovery copy first if you may need the damaged data.</p><div class="dialog-actions"><button class="button quiet" data-close="recovery-dialog">Cancel</button><button class="button primary" data-action="confirm-clear-corrupt-data">Clear local ledger</button></div></div></dialog>` : `<div class="app-shell"><aside class="job-rail"><div class="rail-head"><div><p class="eyebrow">Your work</p><h2>Jobs</h2></div><button class="icon-button add-job" data-action="new-job" aria-label="Create a job">${icon('plus')}</button></div>${jobs.length ? `<nav aria-label="Job ledgers"><ul class="job-list">${jobs.map((item) => { const itemTotals = calculateTotals(recordsFor(item.id)); return `<li><button class="job-button ${item.id === job?.id ? 'active' : ''}" data-job-id="${item.id}" ${item.id === job?.id ? 'aria-current="page"' : ''}><span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.client)}</small><strong>${formatMoney(itemTotals.remaining, item.currency)}</strong></button></li>`; }).join('')}</ul></nav>` : '<p class="rail-empty">Your job ledgers will line up here.</p>'}<div class="rail-footer"><span>${paid ? 'Unlimited ledgers' : 'Free ledger · 1 job'}</span>${!paid ? '<button class="text-button" data-action="unlock">See unlock</button>' : ''}</div></aside><div class="workbench">${job ? renderActive(job) : renderEmpty()}</div></div>`}
     </main>
-    <footer class="site-footer"><span>Records stay on this device.</span><span><a href="/privacy" data-route>Privacy</a><a href="/terms" data-route>Terms</a><span>Generated illustration · original AI-assisted art</span></span></footer>
+    ${renderFooter()}
     <div id="live-region" class="sr-only" aria-live="polite">${escapeHtml(announcement)}</div><div id="update-toast" class="toast" hidden><span>A fresh version is ready.</span><button class="button secondary" data-action="update">Update now</button></div>
     ${renderDialogs(job)}`;
   bindEvents();
@@ -219,7 +266,7 @@ async function handleNewJob(form: HTMLFormElement): Promise<void> {
     jobs = [job, ...jobs];
     records = [record, ...records];
     selectedJobId = job.id;
-    localStorage.setItem('retainer-ledger:selected-job', job.id);
+    localStorage.setItem(selectedJobStorageKey(), job.id);
     closeDialog('new-job-dialog');
     renderApp();
     announce(`${job.name} ledger created.`);
@@ -268,6 +315,20 @@ function bindEvents(): void {
     if (action === 'data') showDialog('data-dialog');
     if (action === 'unlock') showDialog('unlock-dialog');
     if (action === 'retry') await initialize();
+    if (action === 'reset-demo') {
+      await clearLedger();
+      localStorage.removeItem(selectedJobStorageKey());
+      selectedJobId = null;
+      await seedDemoLedger();
+      await initialize();
+      announce('Sample data reset.');
+    }
+    if (action === 'start-real') {
+      await clearLedger();
+      localStorage.removeItem(selectedJobStorageKey());
+      location.assign('/');
+      return;
+    }
     if (action === 'export-recovery') {
       try {
         const bundle = await exportRecoveryBundle();
@@ -281,7 +342,7 @@ function bindEvents(): void {
     if (action === 'confirm-clear-corrupt-data') {
       try {
         await clearLedger();
-        localStorage.removeItem('retainer-ledger:selected-job');
+        localStorage.removeItem(selectedJobStorageKey());
         selectedJobId = null;
         jobs = [];
         records = [];
@@ -328,13 +389,28 @@ function bindEvents(): void {
         setFormError('license-error', navigator.onLine ? 'That license is not active for Retainer Ledger. Check the token and try again.' : 'You are offline. Connect once to verify this license.');
       }
     }
-    if (action === 'update') navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+    if (action === 'update') {
+      const button = element as HTMLButtonElement;
+      const registration = serviceWorkerRegistration ?? await navigator.serviceWorker.getRegistration();
+      if (!registration) return announce('The app update is not ready yet. Try again in a moment.');
+      button.disabled = true;
+      button.textContent = 'Updating…';
+      if (!registration.waiting) await registration.update();
+      const waiting = registration.waiting;
+      if (!waiting) {
+        button.disabled = false;
+        button.textContent = 'Update now';
+        return announce('The update is still preparing. Try again when it is ready.');
+      }
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+      announce('Updating the app now.');
+    }
   }));
 
   document.querySelectorAll<HTMLElement>('[data-close]').forEach((element) => element.addEventListener('click', () => closeDialog(element.dataset.close ?? '')));
   document.querySelectorAll<HTMLButtonElement>('[data-job-id]').forEach((button) => button.addEventListener('click', () => {
     selectedJobId = button.dataset.jobId ?? null;
-    if (selectedJobId) localStorage.setItem('retainer-ledger:selected-job', selectedJobId);
+    if (selectedJobId) localStorage.setItem(selectedJobStorageKey(), selectedJobId);
     renderApp();
   }));
 
@@ -378,12 +454,24 @@ function bindEvents(): void {
 }
 
 function bindRoutes(): void {
-  document.querySelectorAll<HTMLAnchorElement>('a[data-route]').forEach((link) => link.addEventListener('click', (event) => {
+  document.querySelectorAll<HTMLAnchorElement>('a[data-route]').forEach((link) => link.addEventListener('click', async (event) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    const leavingDemo = isDemoMode() && link.pathname !== '/demo';
+    if (leavingDemo) {
+      await clearLedger();
+      localStorage.removeItem(selectedJobStorageKey());
+      location.assign(link.pathname);
+      return;
+    }
+    if (link.pathname === '/demo' && !isDemoMode()) {
+      location.assign('/demo');
+      return;
+    }
     history.pushState({}, '', link.pathname);
     renderApp();
     document.querySelector<HTMLElement>('#main')?.focus({ preventScroll: true });
+    announce(`${document.title} opened.`);
     window.scrollTo(0, 0);
   }));
 }
@@ -398,6 +486,13 @@ async function initialize(): Promise<void> {
     jobs = loaded.jobs;
     records = loaded.records;
     branding = loaded.branding;
+    if (isDemoMode() && !jobs.length && !records.length) {
+      await seedDemoLedger();
+      const seeded = await loadLedger();
+      jobs = seeded.jobs;
+      records = seeded.records;
+      branding = seeded.branding;
+    }
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) selectedJobId = jobs[0]?.id ?? null;
   } catch (error) {
     fatalError = error instanceof Error ? error.message : 'This browser did not provide local storage.';
@@ -422,6 +517,7 @@ window.addEventListener('offline', () => { renderApp(); announce('You are offlin
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     const registration = await navigator.serviceWorker.register('/sw.js');
+    serviceWorkerRegistration = registration;
     if (registration.waiting) document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
     registration.addEventListener('updatefound', () => {
       const worker = registration.installing;
