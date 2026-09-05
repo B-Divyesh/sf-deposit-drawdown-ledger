@@ -109,6 +109,6 @@
     "claim": "A $29 one-time unlock enables unlimited jobs and custom statement branding.",
     "where": "landing page, unlock dialog, terms page, README",
     "test": "npm run test:e2e -- --grep @claim:one-time-unlock",
-    "sandbox": "/demo; inspect the offer, then mock a valid license and observe unlocked branding controls."
+    "sandbox": "/demo; open the offer, prove its visible checkout link returns a 303 to the live Dodo checkout and the hosted page returns 200, verify a deliberately invalid token stays locked, then use a recorded valid-verification fixture to observe the unlocked controls."
   }
 ]

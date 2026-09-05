@@ -233,7 +233,7 @@ test('@claim:one-free-job offers the paid sheet before a second job can be creat
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Create ledger' })).toHaveCount(0);
 });
 
-test('@claim:one-time-unlock describes the $29 price and enables unlimited jobs and statement branding', async ({ page }) => {
+test('@claim:one-time-unlock starts the hosted $29 checkout and enables unlimited jobs and statement branding after a valid license', async ({ page }) => {
   await openDemo(page);
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
   const offer = page.getByRole('dialog', { name: 'More ledgers, your name.' });
@@ -241,7 +241,27 @@ test('@claim:one-time-unlock describes the $29 price and enables unlimited jobs 
   await expect(offer.getByText('one time')).toBeVisible();
   await expect(offer.getByText('Unlimited job ledgers')).toBeVisible();
   await expect(offer.getByText('Your business name and contact line on PDF statements')).toBeVisible();
-  await offer.getByRole('button', { name: 'Close', exact: true }).click();
+
+  const checkout = offer.getByRole('link', { name: /buy the one-time unlock/i });
+  const checkoutHref = await checkout.getAttribute('href');
+  expect(checkoutHref).not.toBeNull();
+  const checkoutResponse = await page.request.get(checkoutHref!, { maxRedirects: 0 });
+  expect(checkoutResponse.status()).toBe(303);
+  const checkoutLocation = checkoutResponse.headers().location;
+  expect(checkoutLocation).toBeTruthy();
+  expect(new URL(checkoutLocation!).hostname).toBe('checkout.dodopayments.com');
+  const hostedCheckout = await page.request.get(checkoutHref!, { maxRedirects: 1 });
+  expect(hostedCheckout.status()).toBe(200);
+  expect(new URL(hostedCheckout.url()).hostname).toBe('checkout.dodopayments.com');
+
+  await offer.getByLabel('Have a license? Paste it here').fill('retainer-ledger-public-invalid-probe');
+  await offer.getByRole('button', { name: 'Verify license' }).click();
+  await expect(offer.getByText('That license is not active for Retainer Ledger. Check the token and try again.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unlock', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    localStorage.removeItem('sb_license:deposit-drawdown-ledger');
+    localStorage.removeItem('sb_license_verdict:deposit-drawdown-ledger');
+  });
 
   await page.route('https://api.sociobot.in/api/v1/products/deposit-drawdown-ledger/verify?license=*', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) });
