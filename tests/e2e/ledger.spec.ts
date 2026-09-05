@@ -54,6 +54,21 @@ test('records deposits and approved drawdowns, then persists the balance', async
   expect((await download).suggestedFilename()).toBe('lantern-shop-refit-statement.pdf');
 });
 
+test('resets the isolated sample ledger without changing real mode', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await page.getByRole('button', { name: 'Record activity' }).click();
+  await page.getByLabel('Amount').fill('10');
+  await page.getByLabel('Description').fill('Temporary sample payment');
+  await page.getByRole('button', { name: 'Save record' }).click();
+  await expect(page.getByText('Temporary sample payment')).toBeVisible();
+  await page.getByRole('button', { name: 'Reset demo' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Deposit ledger for Elm Street kitchen joinery' })).toBeVisible();
+  await expect(page.getByText('Temporary sample payment')).toHaveCount(0);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();
+});
+
 test('has no serious accessibility violations in the empty state', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Record deposits and show what work used them' })).toBeVisible();

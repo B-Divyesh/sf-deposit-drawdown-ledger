@@ -66,7 +66,7 @@ npm run check
 - `npm run build`: passed; `dist/` has the root, demo, privacy, terms, PWA
   files, sitemap, and 404 page. Inline initial HTML is 59.83 KB (18.28 KB gzip).
   The mobile AVIF is 20 KB; no font payload is shipped.
-- `npm run test:e2e`: 52 passed, 2 deliberately project-scoped checks skipped
+- `npm run test:e2e`: 54 passed, 2 deliberately project-scoped checks skipped
   (the desktop two-version worker test and mobile-only target measurement).
 - `npm run check`: passed with the same results.
 - All 16 commands declared in `.factory/claims.json` were each executed
