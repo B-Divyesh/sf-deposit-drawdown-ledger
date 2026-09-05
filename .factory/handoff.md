@@ -4,7 +4,8 @@
 
 - **Implementation SHA:** `1990de18b315120ccbaca8aa07d46c951e32a563`
   (`fix: add isolated demo and release repairs`)
-- **Documentation SHA:** pending this handoff commit.
+- **Documentation/test SHA:** `69a7e74cec34e2d37b0a03f8f6c3b0ee10248868`
+  (`test: cover demo reset boundary`). It does not change the product image.
 - **Product:** record deposits, payments, approved drawdowns, and the remaining
   balance for one job; share a statement with the client.
 - **Audience:** independent consultants and tradespeople who take deposits or
@@ -74,14 +75,21 @@ npm run check
 
 ## Deployment and live check
 
-Push the implementation SHA to `main`; the static product deploy is triggered
-by the factory. Then verify the HTTPS URL cold on desktop and phone, including
-`/demo`, 404, headers, cache policy, controlled offline reload, and
-`/opt/fleet/lib/verify-url.sh`. This handoff will be updated with the deployed
-implementation and documentation SHAs after that check.
+`1990de1` and the later documentation/test commits were pushed to `main`.
+At 2026-09-05 21:02 UTC, the product HTTPS host still returned the previous
+root SHA-256 `30eb7b…eeaa51d5`, last modified 2026-08-28, and the old
+`manifest.webmanifest` path. It had not received this candidate, so no current
+HTTPS cold-browser, cache-header, or `verify-url.sh` result is claimed here.
+
+This repository has no static deployment configuration and no available product
+deployment token. The factory contract also reserves infrastructure changes.
+The remaining action is for the factory static deploy to publish implementation
+`1990de1`; after that, compare live root, `sw.js`, and
+`manifest.v3.webmanifest` hashes to this build and run the HTTPS checks above.
 
 ## Known gaps
 
-No product gaps are known locally. The $29 hosted checkout remains an external
+No product gaps are known locally. The only release gap is the stale HTTPS
+deployment described above. The $29 hosted checkout remains an external
 Sociobot billing dependency; this repair does not initiate a purchase or add
 provider credentials.
