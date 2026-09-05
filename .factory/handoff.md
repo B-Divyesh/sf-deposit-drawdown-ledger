@@ -4,8 +4,12 @@
 
 - **Implementation SHA:** `1990de18b315120ccbaca8aa07d46c951e32a563`
   (`fix: add isolated demo and release repairs`)
-- **Documentation/test SHA:** `69a7e74cec34e2d37b0a03f8f6c3b0ee10248868`
+- **Documentation/test implementation SHA:**
+  `69a7e74cec34e2d37b0a03f8f6c3b0ee10248868`
   (`test: cover demo reset boundary`). It does not change the product image.
+- **Verification documentation SHA:**
+  `f2e1405f8c10b799c273b6a9fb2d6b76f03220c7`
+  (`docs: record pending static deployment`). It does not change the product image.
 - **Product:** record deposits, payments, approved drawdowns, and the remaining
   balance for one job; share a statement with the client.
 - **Audience:** independent consultants and tradespeople who take deposits or
@@ -75,21 +79,31 @@ npm run check
 
 ## Deployment and live check
 
-`1990de1` and the later documentation/test commits were pushed to `main`.
-At 2026-09-05 21:02 UTC, the product HTTPS host still returned the previous
-root SHA-256 `30eb7b…eeaa51d5`, last modified 2026-08-28, and the old
-`manifest.webmanifest` path. It had not received this candidate, so no current
-HTTPS cold-browser, cache-header, or `verify-url.sh` result is claimed here.
-
-This repository has no static deployment configuration and no available product
-deployment token. The factory contract also reserves infrastructure changes.
-The remaining action is for the factory static deploy to publish implementation
-`1990de1`; after that, compare live root, `sw.js`, and
-`manifest.v3.webmanifest` hashes to this build and run the HTTPS checks above.
+The static host published the repaired candidate after this handoff was first
+written. Independent verification on 2026-09-05 found matching SHA-256 values
+for live `/`, `/sw.js`, and `/manifest.v3.webmanifest` and the fresh local
+build. Live cold-browser, cache-header, service-worker offline, URL verifier,
+and Axe integration checks are recorded in `.factory/verification-3.md`.
 
 ## Known gaps
 
-No product gaps are known locally. The only release gap is the stale HTTPS
-deployment described above. The $29 hosted checkout remains an external
-Sociobot billing dependency; this repair does not initiate a purchase or add
-provider credentials.
+### Independent verification 3 — FAIL
+
+Verification on 2026-09-05 reviewed implementation
+`1990de18b315120ccbaca8aa07d46c951e32a563` and documentation/test checkout
+`f2e1405f8c10b799c273b6a9fb2d6b76f03220c7`.
+
+The live host now exactly matches the repaired local build, including `/demo`,
+offline reload, the worker-update repair, 44 px phone targets, versioned asset
+caching, metadata, and the designed 404. A clean `npm ci` then all 16 declared
+claim commands, `npm test`, `npm run build`, `npm run test:e2e`, and
+`npm run check` passed (54 browser passes and 2 intentional project-scoped
+skips). The current verification report is `.factory/verification-3.md`.
+
+The release cannot be accepted yet. The visible $29 **Buy the one-time unlock**
+link resolves to the product's Sociobot checkout URL, which returns HTTP 404.
+This makes the paid user path unavailable and leaves the paid claim's
+checkout-start coverage incomplete. Factory billing registration must be
+restored, then the live link crawl and checkout-start smoke test rerun. No
+product code, deployment configuration, or credentials were changed by this
+verification.
